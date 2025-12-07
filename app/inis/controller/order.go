@@ -1,11 +1,11 @@
 package controller
 
 import (
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
+	"github.com/unti-io/go-utils/utils"
 	"inis/app/facade"
 	"strings"
-
-	"github.com/gin-gonic/gin"
-	"github.com/unti-io/go-utils/utils"
 )
 
 type Order struct {
@@ -19,7 +19,7 @@ func (this *Order) IGET(ctx *gin.Context) {
 	method := strings.ToLower(ctx.Param("method"))
 
 	allow := map[string]any{
-		"theme":  this.theme,
+		"theme": this.theme,
 		"themes": this.themes,
 	}
 	err := this.call(allow, method, ctx)
@@ -36,7 +36,8 @@ func (this *Order) IPOST(ctx *gin.Context) {
 	// 转小写
 	method := strings.ToLower(ctx.Param("method"))
 
-	allow := map[string]any{}
+	allow := map[string]any{
+	}
 	err := this.call(allow, method, ctx)
 
 	if err != nil {
@@ -64,7 +65,8 @@ func (this *Order) IDEL(ctx *gin.Context) {
 	// 转小写
 	method := strings.ToLower(ctx.Param("method"))
 
-	allow := map[string]any{}
+	allow := map[string]any{
+	}
 	err := this.call(allow, method, ctx)
 
 	if err != nil {
@@ -75,6 +77,7 @@ func (this *Order) IDEL(ctx *gin.Context) {
 
 // INDEX - GET请求本体
 func (this *Order) INDEX(ctx *gin.Context) {
+
 	this.json(ctx, nil, facade.Lang(ctx, "好的！"), 200)
 }
 
@@ -89,27 +92,46 @@ func (this *Order) theme(ctx *gin.Context) {
 		return
 	}
 
-	// 返回简单的授权成功格式
-	fakeData := map[string]interface{}{
-		"id":     1,
-		"is_buy": true,
-		"name":   params["key"],
-		"status": 1,
+	// 绑定设备
+	item := utils.Curl(utils.CurlRequest{
+		Url:     facade.Uri + "/sn/order/theme",
+		Method:  "GET",
+		Query :  params,
+		Headers: facade.Comm.Signature(params),
+	}).Send()
+
+	if item.Error != nil {
+		this.json(ctx, nil, facade.Lang(ctx, "远程服务器错误：%v", item.Error.Error()), 500)
+		return
 	}
 
-	this.json(ctx, fakeData, facade.Lang(ctx, "已授权"), 200)
+	if cast.ToInt(item.Json["code"]) != 200 {
+		this.json(ctx, item.Json["data"], item.Json["msg"], item.Json["code"])
+		return
+	}
+
+	this.json(ctx, item.Json["data"], facade.Lang(ctx, cast.ToString(item.Json["msg"])), 200)
 }
 
 // themes - 查询已购的全部主题
 func (this *Order) themes(ctx *gin.Context) {
 
-	// 返回简单的授权成功格式
-	fakeData := map[string]interface{}{
-		"id":     1,
-		"is_buy": true,
-		"name":   "jue",
-		"status": 1,
+	// 绑定设备
+	item := utils.Curl(utils.CurlRequest{
+		Url:     facade.Uri + "/sn/order/themes",
+		Method:  "GET",
+		Headers: facade.Comm.Signature(nil),
+	}).Send()
+
+	if item.Error != nil {
+		this.json(ctx, nil, facade.Lang(ctx, "远程服务器错误：%v", item.Error.Error()), 500)
+		return
 	}
 
-	this.json(ctx, fakeData, facade.Lang(ctx, "已授权"), 200)
+	if cast.ToInt(item.Json["code"]) != 200 {
+		this.json(ctx, item.Json["data"], item.Json["msg"], item.Json["code"])
+		return
+	}
+
+	this.json(ctx, item.Json["data"], facade.Lang(ctx, "好的！"), 200)
 }
